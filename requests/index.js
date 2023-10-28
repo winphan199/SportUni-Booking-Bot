@@ -1,5 +1,3 @@
-import jsdom from "jsdom";
-
 export const getAvailableShiftsOnDate = async (
   startDate,
   endDate,
