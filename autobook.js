@@ -2,6 +2,56 @@ import { ErrorCode } from "./constants/errorCode/index.js";
 import { Location } from "./constants/location/index.js";
 import { getAvailableShiftsOnDate } from "./requests/index.js";
 import { delay, bookCourt, cancelBookedCourtById } from "./utils/index.js";
+import puppeteer from 'puppeteer';
+
+const browser = await puppeteer.launch({ headless: false, args: ['--incognito'] });
+
+
+async function login() {
+  const browser = await puppeteer.launch({ headless: false, args: ['--incognito'] });
+  const page = await browser.newPage();
+  let cookies;
+
+  try {
+    await page.goto('https://www.tuni.fi/sportuni/omasivu/?page=myevents&lang=en');
+    await page.type('#username', 'enter username here'); 
+    await page.type('#password', 'enter password here'); 
+    await page.click('#login-button'); 
+    await page.waitForNavigation();
+    const mfaElement = await page.$('#mfa-input'); 
+    if (mfaElement) {
+
+      const mfaCode = await getUserInput('Enter MFA code: '); 
+      await page.type('#mfa-input', mfaCode); 
+      await page.click('#mfa-submit-button'); 
+      await page.waitForNavigation(); 
+    }
+    const cookies = await page.cookies();
+    console.log(cookies);
+
+  } catch (error) {
+    console.error('An error occurred during login:', error);
+  } finally {
+    await browser.close();
+  }
+    return cookies;
+}
+
+async function getUserInput(prompt) {
+  const readline = require('readline').createInterface({
+    input: process.stdin,
+    output: process.stdout,
+  });
+
+  return new Promise((resolve) => {
+    readline.question(prompt, (userInput) => {
+      readline.close();
+      resolve(userInput);
+    });
+  });
+}
+
+
 
 // START USER INPUT
 const toBookList = [
@@ -13,8 +63,8 @@ const toBookList = [
       // Maximum court cho 1 request là 3.
       // trueCourts là optional
       {
-        date: "2023-11-03",
-        time: 7,
+        date: "2023-10-30",
+        time: 10,
         conditionCourts: [1],
         trueCourts: [3, 5],
         succeeded: {
@@ -28,13 +78,13 @@ const toBookList = [
 
 const generalInfo = {
   maxCourt: 3,
-  cookie:
-    "_ga=GA1.1.490669924.1693473359; _ga_XWBJWEFREF=GS1.1.1698136196.7.1.1698136973.0.0.0; lb_selection=1558374018.47873.0000; _ga_500BRKCGK8=GS1.1.1698514296.60.0.1698514305.0.0.0; _shibsession_77656270616765732e74756e692e666968747470733a2f2f776562686f74656c342e74756e692e66692f73686962626f6c657468=_29c0c66620a17fc21c6749f4a70fe870",
-  startDate: "2023-11-03", // yyyy-mm-dd
-  endDate: "2023-11-03", // yyyy-mm-dd
+    cookie: " ",
+  //   "AMCV_4D6368F454EC41940A4C98A6%40AdobeOrg=-2121179033%7CMCIDTS%7C19556%7CMCMID%7C61111827150459331551836958612359904734%7CMCAAMLH-1690176222%7C3%7CMCAAMB-1690176222%7CRKhpRz8krg2tLO6pguXWp5olkAcUniQYPHaMWWgdJ3xzPWQmdj0y%7CMCOPTOUT-1689578622s%7CNONE%7CMCAID%7CNONE%7CvVersion%7C5.3.0; s_pers=%20v8%3D1689571434154%7C1784179434154%3B%20v8_s%3DFirst%2520Visit%7C1689573234154%3B%20c19%3Dpr%253Apure%2520portal%253Apersons%253Anetwork%7C1689573234156%3B%20v68%3D1689571433288%7C1689573234159%3B; lb_selection=1541596802.47873.0000; _shibsession_77656270616765732e74756e692e666968747470733a2f2f776562686f74656c342e74756e692e66692f73686962626f6c657468=_6250b1cd9d5d902e52745befdf57b920",
+  startDate: "2023-10-30", // yyyy-mm-dd
+  endDate: "2023-10-30", // yyyy-mm-dd
   sportUniLocation: {
     hervanta: true,
-    center: true,
+    center: false,
     kauppi: false,
     otherLocations: false,
   },
@@ -46,6 +96,8 @@ let startBooking = async (
   toBookList,
   bookingLimit = 1
 ) => {
+    // Call the login function here
+    await login();
   // fetch the calendar to see if there is available courts at that date
   let data = await getAvailableShiftsOnDate(
     startDate,
@@ -358,4 +410,7 @@ const handleBookingConditionCourts = async (
   return { bookCount, status: true, statusCode: ErrorCode.SUCCESS };
 };
 
+
+const cookies = await login();
+generalInfo.cookie = cookies;
 startBooking(generalInfo, toBookList, 2);
